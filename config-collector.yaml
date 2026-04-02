@@ -1,0 +1,36 @@
+# See https://opentelemetry.io/docs/collector/configuration/
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  # export traces to jaeger using otlp_grpc
+  otlp_grpc/jaeger: # type/name
+    endpoint: "http://jaeger:4317"
+    tls:
+      insecure: true
+  # export metrics to prometheus using push rather than waiting on prometheus to poll (reduces memory usage???)
+  prometheusremotewrite: # type
+    endpoint: "http://prometheus:9090/api/v1/write"
+    target_info:
+      enabled: true
+
+connectors:
+  # spanmetrics connector is provided by the contrib distribution, it transforms spans into metrics
+  # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.149.0/connector/spanmetricsconnector#configurations
+  spanmetrics:
+    # namespace must match config-jaeger.yaml:extensions/jaeger_storage/metrics_backend/<name>/prometheus/metric_namespace
+    namespace: "span_metrics" # default "traces.span.metrics", the "." will be converted to "_"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp_grpc/jaeger, spanmetrics]
+    metrics:
+      receivers: [spanmetrics]
+      exporters: [prometheusremotewrite]

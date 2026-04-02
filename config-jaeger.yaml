@@ -1,0 +1,36 @@
+# See https://www.jaegertracing.io/docs/2.17/deployment/configuration/
+receivers:
+  otlp: # type & name
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+
+exporters:
+  jaeger_storage_exporter: # name
+    trace_storage: memory_storage # ref to name
+
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp] # ref to name
+      exporters: [jaeger_storage_exporter] # ref to name
+
+extensions:
+  jaeger_query:
+    storage:
+      traces: memory_storage # ref to name
+      metrics: remote_prometheus # ref to name
+  jaeger_storage:
+    backends:
+      memory_storage: # name
+        memory: # type
+          max_traces: 100000
+    metric_backends:
+      remote_prometheus: # name
+        prometheus: # type
+          endpoint: "http://prometheus:9090"
+          normalize_calls: true
+          normalize_duration: true
+          # this must match config-collector.yaml:connectors/spanmetrics/namespace
+          metric_namespace: "span_metrics" # default "traces_span_metrics"
